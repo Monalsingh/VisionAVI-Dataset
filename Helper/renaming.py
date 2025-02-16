@@ -52,11 +52,7 @@ def rename_files(image_folder, label_folder, base_name):
 
 
 # Example usage
-image_folder = (
-    "/Users/akb/Desktop/CV_GenAi/Project/visionaid/Data/anantha.k/train/images"
-)
-label_folder = (
-    "/Users/akb/Desktop/CV_GenAi/Project/visionaid/Data/anantha.k/train/labels"
-)
+image_folder = "-------------------"
+label_folder = "-------------------"
 base_name = "KNCVB10065"  # MY ID
 rename_files(image_folder, label_folder, base_name)

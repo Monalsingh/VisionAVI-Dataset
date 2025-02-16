@@ -68,12 +68,8 @@ def update_labels(annotation_folder, data_yaml_file, standard_label_map):
 
 
 # Your existing paths and standard_label_map
-annotation_folder = (
-    "/Users/akb/Desktop/CV_GenAi/Project/visionaid/Data/anantha.k/train/labels"
-)
-data_yaml_file = (
-    "/Users/akb/Desktop/CV_GenAi/Project/visionaid/Data/anantha.k/data.yaml"
-)
+annotation_folder = "-------------------"
+data_yaml_file = "-------------------"
 standard_label_map = {
     "angryface": 0,
     "auto": 1,
