@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 11
+names: ['auto', 'bicycle', 'bus', 'car', 'motorcycle', 'numberplate', 'person', 'pole', 'road', 'sidewalk', 'van']
+
+roboflow:
+  workspace: comoutervision
+  project: object_detection-rgqkd
+  version: 11
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/comoutervision/object_detection-rgqkd/dataset/11
