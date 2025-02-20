@@ -1,94 +1,104 @@
-# Import Libraries
 import yaml
 import os
 import logging
 
-logging.basicConfig(level=logging.INFO)
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+def reindex_annotations(annotation_folder, data_yaml_file, standard_label_map):
+    """
+    Reindex annotations in text files based on a standard label map and update the YAML file.
+    Also handles invalid or unknown labels with logging warnings.
+
+    Args:
+        annotation_folder (str): Path to the folder containing annotation text files.
+        data_yaml_file (str): Path to the YAML file containing current label names.
+        standard_label_map (dict): A dictionary mapping label names to new indices.
 
 
-def update_labels(annotation_folder, data_yaml_file, standard_label_map):
     """
-    Update labels to match standard_label_map while preserving bounding box associations
-    """
-    # Load current YAML
+    # Load the existing YAML file
     with open(data_yaml_file, "r") as f:
         data = yaml.safe_load(f)
 
-    # Create reverse mapping from current indices to label names
-    current_idx_to_name = {idx: name for idx, name in enumerate(data["names"])}
+    # Extract current label mapping from YAML file by using dictionary comprehension 
+    current_label_map = {name: idx for idx, name in enumerate(data.get("names", []))}
+    reverse_label_map = {idx: name for name, idx in current_label_map.items()}  # Reverse mapping
+    logging.info("Current Label Mapping: %s", current_label_map)
 
-    # Update data.yaml to match standard order
-    data["names"] = [name for name in standard_label_map.keys()]
-    data["nc"] = len(standard_label_map)
-
-    # Write updated data.yaml
-    with open(data_yaml_file, "w") as f:
-        yaml.dump(data, f)
-    logging.info("Updated data.yaml with standard label order")
-
-    # Update annotation files
+    # Iterate through .txt annotation files
     for filename in os.listdir(annotation_folder):
-        if not filename.endswith(".txt"):
-            continue
+        if filename.endswith(".txt"):
+            file_path = os.path.join(annotation_folder, filename)
 
-        file_path = os.path.join(annotation_folder, filename)
-        updated_lines = []
+            # Read .txt annotation lines
+            with open(file_path, "r") as file:
+                lines = file.readlines() # Read all lines from the .txt file
 
-        with open(file_path, "r") as f:
-            lines = f.readlines()
+            new_lines = []  # Create a list to store modified annotations
+            for line in lines:
+                parts = line.strip().split()   # Split each line into parts (class index and bounding box coordinates)
+                if len(parts) < 5:
+                    continue  # Skip invalid lines
 
-        for line in lines:
-            parts = line.strip().split()
-            if len(parts) < 5:
-                continue
+                old_index = int(parts[0])  # Extract the current class index
+                old_label_name = reverse_label_map.get(old_index, None) # Find the corresponding label name
 
-            # Get current label name using the old index
-            old_idx = int(parts[0])
-            if old_idx not in current_idx_to_name:
-                logging.warning(f"Invalid label index {old_idx} in {filename}")
-                continue
+                # Check if the label exists in the reverse mapping
+                if old_label_name is None:
+                    logging.warning("File: %s - Unknown label index %d", filename, old_index)
+                    continue  # Skip unknown label
+                # Get the new class index from the standard label map using .get() dictionary method
+                new_index = standard_label_map.get(old_label_name, old_index)
+                # Log the change if the label index is different
+                if old_index != new_index:
+                    logging.info(
+                        "File: %s - Class '%s' changed from index %d to %d",
+                        filename, old_label_name, old_index, new_index
+                    )
+                # Construct the new annotation line with the updated class index
+                new_line = f"{new_index} {' '.join(parts[1:])}"
+                new_lines.append(new_line)    # Add the modified line to the list
 
-            label_name = current_idx_to_name[old_idx]
-            if label_name not in standard_label_map:
-                logging.warning(f"Skipping unknown label {label_name} in {filename}")
-                continue
+            # Write the updated .txt annotations back to the file
+            with open(file_path, "w") as file:
+                file.write("\n".join(new_lines))  # Overwrite the file with updated annotations
+            logging.info("Updated annotations in file: %s", filename)
 
-            # Get new index from standard map
-            new_idx = standard_label_map[label_name]
+    # Update the YAML file with the new class names from the standard_label_map
+    updated_yaml_data = data.copy()  # Make a copy of the existing YAML data
 
-            # Keep original bounding box coordinates
-            new_line = f"{new_idx} {' '.join(parts[1:])}\n"
-            updated_lines.append(new_line)
+    # Update only the 'names' and 'nc' fields
+    updated_yaml_data["names"] = {v: k for k, v in standard_label_map.items()}  # Reverse the standard label map to store names correctly
+    updated_yaml_data["nc"] = len(standard_label_map)
 
-        # Write updated annotations
-        with open(file_path, "w") as f:
-            f.writelines(updated_lines)
+    # Log the changes to the YAML data before saving
+    logging.info("Updating YAML file with new 'names' and 'nc' values.")
+    logging.info("New 'names' values: %s", updated_yaml_data["names"])
+    logging.info("New 'nc' value: %d", updated_yaml_data["nc"])
 
-    logging.info("Completed updating annotation files")
+    # Save the updated YAML data
+    with open(data_yaml_file, "w") as f:
+        yaml.dump(updated_yaml_data, f, default_flow_style=False) # Write the updated YAML data
 
+    logging.info("YAML file updated with new label mappings.")
+    logging.info("Annotation reindexing completed.")
 
-# Your existing paths and standard_label_map
-annotation_folder = "-------------------"
-data_yaml_file = "-------------------"
+# Define standard label map
 standard_label_map = {
-    "angryface": 0,
-    "auto": 1,
-    "bicycle": 2,
-    "bus": 3,
-    "car": 4,
-    "happyface": 5,
-    "motorcycle": 6,
-    "neutralface": 7,
-    "numberplate": 8,
-    "person": 9,
-    "pole": 10,
-    "road": 11,
-    "sadface": 12,
-    "sidewalk": 13,
-    "truck": 14,
-    "van": 15,
-    "road_cross": 16,
+    "angryface": 0, "auto": 1, "bicycle": 2, "bus": 3, "car": 4, "happyface": 5, "motorcycle": 6,
+    "neutralface": 7, "numberplate": 8, "person": 9, "pole": 10, "road": 11, "road_cross": 12,
+    "sadface": 13, "sidewalk": 14, "truck": 15, "van": 16
 }
 
-# Run the update
-update_labels(annotation_folder, data_yaml_file, standard_label_map)
+# Define the paths to the annotation folders(.txt files ) and the corresponding YAML files
+annotation_folders = [
+    "D:/Updated_video/NEW_UPDATE_FINAL_ONE/labels"
+]
+data_yaml_files = [
+    "D:/Updated_video/NEW_UPDATE_FINAL_ONE/dataset.yaml"
+]
+
+# Process each dataset folder by reindexing its annotations
+for i in range(len(annotation_folders)):
+    reindex_annotations(annotation_folders[i], data_yaml_files[i], standard_label_map)
